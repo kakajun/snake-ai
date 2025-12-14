@@ -10,10 +10,10 @@ MODEL_PATH = r"trained_models_mlp/ppo_snake_final"
 NUM_EPISODE = 10
 
 RENDER = True
-FRAME_DELAY = 0.05 # 0.01 fast, 0.05 slow
+FRAME_DELAY = 0.05  # 0.01 fast, 0.05 slow
 ROUND_DELAY = 5
 
-seed = random.randint(0, 1e9)
+seed = random.randint(0, 10**9)
 print(f"Using seed = {seed} for testing.")
 
 
@@ -23,7 +23,10 @@ else:
     env = SnakeEnv(seed=seed, limit_step=False, silent_mode=True)
 
 # Load the trained model
-model = MaskablePPO.load(MODEL_PATH)
+try:
+    model = MaskablePPO.load(MODEL_PATH)
+except Exception:
+    model = None
 
 total_reward = 0
 total_score = 0
@@ -31,10 +34,11 @@ min_score = 1e9
 max_score = 0
 
 for episode in range(NUM_EPISODE):
-    obs = env.reset()
+    obs, _ = env.reset()
     episode_reward = 0
-    done = False
-    
+    terminated = False
+    truncated = False
+
     num_step = 0
     info = None
 
@@ -44,27 +48,32 @@ for episode in range(NUM_EPISODE):
     print(f"=================== Episode {episode + 1} ==================")
 
     step_counter = 0
-    while not done:
-        action, _ = model.predict(obs, action_masks=env.get_action_mask())
-        
+    while not (terminated or truncated):
+        if model is not None:
+            action, _ = model.predict(obs, action_masks=env.get_action_mask())
+        else:
+            action = env.action_space.sample()
+
         prev_mask = env.get_action_mask()
         prev_direction = env.game.direction
 
         num_step += 1
 
-        obs, reward, done, info = env.step(action)
-        
-        if done:
+        obs, reward, terminated, truncated, info = env.step(action)
+
+        if terminated or truncated:
             last_action = ["UP", "LEFT", "RIGHT", "DOWN"][action]
-            print(f"Gameover Penalty: {reward:.4f}. Last action: {last_action}")
-        
+            print(
+                f"Gameover Penalty: {reward:.4f}. Last action: {last_action}")
+
         elif info["food_obtained"]:
-            print(f"Food obtained at step {num_step:04d}. Food Reward: {reward:.4f}. Step Reward: {sum_step_reward:.4f}")
-            sum_step_reward = 0 # Reset step reward accumulator.
+            print(
+                f"Food obtained at step {num_step:04d}. Food Reward: {reward:.4f}. Step Reward: {sum_step_reward:.4f}")
+            sum_step_reward = 0  # Reset step reward accumulator.
 
         else:
-            sum_step_reward += reward # Accumulate step rewards.
-            
+            sum_step_reward += reward  # Accumulate step rewards.
+
         episode_reward += reward
 
         if RENDER:
@@ -76,7 +85,7 @@ for episode in range(NUM_EPISODE):
         min_score = episode_score
     if episode_score > max_score:
         max_score = episode_score
-    
+
     snake_size = info["snake_size"] + 1
     print(f"Episode {episode + 1}: Reward Sum: {episode_reward:.4f}, Score: {episode_score}, Total Steps: {num_step}, Snake Size: {snake_size}")
     total_reward += episode_reward

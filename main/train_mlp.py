@@ -15,6 +15,8 @@ LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Linear scheduler
+
+
 def linear_schedule(initial_value, final_value=0.0):
 
     if isinstance(initial_value, str):
@@ -27,21 +29,23 @@ def linear_schedule(initial_value, final_value=0.0):
 
     return scheduler
 
+
 def make_env(seed=0):
     def _init():
         env = SnakeEnv(seed=seed)
         env = ActionMasker(env, SnakeEnv.get_action_mask)
         env = Monitor(env)
-        env.seed(seed)
+        env.reset(seed=seed)
         return env
     return _init
+
 
 def main():
 
     # Generate a list of random seeds for each environment.
     seed_set = set()
     while len(seed_set) < NUM_ENV:
-        seed_set.add(random.randint(0, 1e9))
+        seed_set.add(random.randint(0, 10**9))
 
     # Create the Snake environment.
     env = SubprocVecEnv([make_env(seed=s) for s in seed_set])
@@ -68,8 +72,10 @@ def main():
     save_dir = "trained_models_mlp"
     os.makedirs(save_dir, exist_ok=True)
 
-    checkpoint_interval = 15625 # checkpoint_interval * num_envs = total_steps_per_checkpoint
-    checkpoint_callback = CheckpointCallback(save_freq=checkpoint_interval, save_path=save_dir, name_prefix="ppo_snake")
+    # checkpoint_interval * num_envs = total_steps_per_checkpoint
+    checkpoint_interval = 15625
+    checkpoint_callback = CheckpointCallback(
+        save_freq=checkpoint_interval, save_path=save_dir, name_prefix="ppo_snake")
 
     # Writing the training logs from stdout to a file
     original_stdout = sys.stdout
@@ -88,6 +94,7 @@ def main():
 
     # Save the final model
     model.save(os.path.join(save_dir, "ppo_snake_final.zip"))
+
 
 if __name__ == "__main__":
     main()

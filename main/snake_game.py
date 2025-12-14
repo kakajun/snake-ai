@@ -1,3 +1,5 @@
+from pygame import mixer
+import pygame
 import os
 import sys
 import random
@@ -5,8 +7,7 @@ import random
 import numpy as np
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-import pygame
-from pygame import mixer
+
 
 class SnakeGame:
     def __init__(self, seed=0, board_size=12, silent_mode=True):
@@ -23,7 +24,8 @@ class SnakeGame:
         if not silent_mode:
             pygame.init()
             pygame.display.set_caption("Snake Game")
-            self.screen = pygame.display.set_mode((self.display_width, self.display_height))
+            self.screen = pygame.display.set_mode(
+                (self.display_width, self.display_height))
             self.font = pygame.font.Font(None, 36)
 
             # Load sound effects
@@ -43,19 +45,23 @@ class SnakeGame:
         self.food = None
         self.seed_value = seed
 
-        random.seed(seed) # Set random seed.
-        
+        random.seed(seed)  # Set random seed.
+
         self.reset()
 
     def reset(self):
-        self.snake = [(self.board_size // 2 + i, self.board_size // 2) for i in range(1, -2, -1)] # Initialize the snake with three cells in (row, column) format.
-        self.non_snake = set([(row, col) for row in range(self.board_size) for col in range(self.board_size) if (row, col) not in self.snake]) # Initialize the non-snake cells.
-        self.direction = "DOWN" # Snake starts downward in each round
+        # Initialize the snake with three cells in (row, column) format.
+        self.snake = [(self.board_size // 2 + i, self.board_size // 2)
+                      for i in range(1, -2, -1)]
+        self.non_snake = set([(row, col) for row in range(self.board_size) for col in range(
+            # Initialize the non-snake cells.
+            self.board_size) if (row, col) not in self.snake])
+        self.direction = "DOWN"  # Snake starts downward in each round
         self.food = self._generate_food()
         self.score = 0
 
     def step(self, action):
-        self._update_direction(action) # Update direction based on action.
+        self._update_direction(action)  # Update direction based on action.
 
         # Move snake based on current action.
         row, col = self.snake[0]
@@ -69,14 +75,16 @@ class SnakeGame:
             col += 1
 
         # Check if snake eats food.
-        if (row, col) == self.food: # If snake eats food, it won't pop the last cell. The food grid will be taken by snake later, no need to update board vacancy matrix.
+        # If snake eats food, it won't pop the last cell. The food grid will be taken by snake later, no need to update board vacancy matrix.
+        if (row, col) == self.food:
             food_obtained = True
-            self.score += 10 # Add 10 points to the score when food is eaten.
+            self.score += 10  # Add 10 points to the score when food is eaten.
             if not self.silent_mode:
                 self.sound_eat.play()
         else:
             food_obtained = False
-            self.non_snake.add(self.snake.pop()) # Pop the last cell of the snake and add it to the non-snake set.
+            # Pop the last cell of the snake and add it to the non-snake set.
+            self.non_snake.add(self.snake.pop())
 
         # Check if snake collided with itself or the wall
         done = (
@@ -91,7 +99,7 @@ class SnakeGame:
             self.snake.insert(0, (row, col))
             self.non_snake.remove((row, col))
 
-        else: # If game is over and the game is not in silent mode, play game over sound effect.
+        else:  # If game is over and the game is not in silent mode, play game over sound effect.
             if not self.silent_mode:
                 if len(self.snake) < self.grid_size:
                     self.sound_game_over.play()
@@ -102,7 +110,7 @@ class SnakeGame:
         if food_obtained:
             self.food = self._generate_food()
 
-        info ={
+        info = {
             "snake_size": len(self.snake),
             "snake_head_pos": np.array(self.snake[0]),
             "prev_snake_head_pos": np.array(self.snake[1]),
@@ -130,50 +138,61 @@ class SnakeGame:
 
     def _generate_food(self):
         if len(self.non_snake) > 0:
-            food = random.sample(self.non_snake, 1)[0]
-        else: # If the snake occupies the entire board, no need to generate new food and just default to (0, 0).
+            food = random.choice(tuple(self.non_snake))
+        # If the snake occupies the entire board, no need to generate new food and just default to (0, 0).
+        else:
             food = (0, 0)
         return food
-    
+
     def draw_score(self):
-        score_text = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
-        self.screen.blit(score_text, (self.border_size, self.height + 2 * self.border_size))
-    
+        score_text = self.font.render(
+            f"Score: {self.score}", True, (255, 255, 255))
+        self.screen.blit(score_text, (self.border_size,
+                         self.height + 2 * self.border_size))
+
     def draw_welcome_screen(self):
         title_text = self.font.render("SNAKE GAME", True, (255, 255, 255))
         start_button_text = "START"
 
         self.screen.fill((0, 0, 0))
-        self.screen.blit(title_text, (self.display_width // 2 - title_text.get_width() // 2, self.display_height // 4))
-        self.draw_button_text(start_button_text, (self.display_width // 2, self.display_height // 2))
+        self.screen.blit(title_text, (self.display_width // 2 -
+                         title_text.get_width() // 2, self.display_height // 4))
+        self.draw_button_text(
+            start_button_text, (self.display_width // 2, self.display_height // 2))
         pygame.display.flip()
 
     def draw_game_over_screen(self):
         game_over_text = self.font.render("GAME OVER", True, (255, 255, 255))
-        final_score_text = self.font.render(f"SCORE: {self.score}", True, (255, 255, 255))
+        final_score_text = self.font.render(
+            f"SCORE: {self.score}", True, (255, 255, 255))
         retry_button_text = "RETRY"
 
         self.screen.fill((0, 0, 0))
-        self.screen.blit(game_over_text, (self.display_width // 2 - game_over_text.get_width() // 2, self.display_height // 4))
-        self.screen.blit(final_score_text, (self.display_width // 2 - final_score_text.get_width() // 2, self.display_height // 4 + final_score_text.get_height() + 10))
-        self.draw_button_text(retry_button_text, (self.display_width // 2, self.display_height // 2))          
+        self.screen.blit(game_over_text, (self.display_width // 2 -
+                         game_over_text.get_width() // 2, self.display_height // 4))
+        self.screen.blit(final_score_text, (self.display_width // 2 - final_score_text.get_width() //
+                         2, self.display_height // 4 + final_score_text.get_height() + 10))
+        self.draw_button_text(
+            retry_button_text, (self.display_width // 2, self.display_height // 2))
         pygame.display.flip()
 
     def draw_button_text(self, button_text_str, pos, hover_color=(255, 255, 255), normal_color=(100, 100, 100)):
         mouse_pos = pygame.mouse.get_pos()
         button_text = self.font.render(button_text_str, True, normal_color)
         text_rect = button_text.get_rect(center=pos)
-        
+
         if text_rect.collidepoint(mouse_pos):
             colored_text = self.font.render(button_text_str, True, hover_color)
         else:
-            colored_text = self.font.render(button_text_str, True, normal_color)
-        
+            colored_text = self.font.render(
+                button_text_str, True, normal_color)
+
         self.screen.blit(colored_text, text_rect)
-    
+
     def draw_countdown(self, number):
         countdown_text = self.font.render(str(number), True, (255, 255, 255))
-        self.screen.blit(countdown_text, (self.display_width // 2 - countdown_text.get_width() // 2, self.display_height // 2 - countdown_text.get_height() // 2))
+        self.screen.blit(countdown_text, (self.display_width // 2 - countdown_text.get_width() //
+                         2, self.display_height // 2 - countdown_text.get_height() // 2))
         pygame.display.flip()
 
     def is_mouse_on_button(self, button_text):
@@ -190,15 +209,18 @@ class SnakeGame:
         self.screen.fill((0, 0, 0))
 
         # Draw border
-        pygame.draw.rect(self.screen, (255, 255, 255), (self.border_size - 2, self.border_size - 2, self.width + 4, self.height + 4), 2)
+        pygame.draw.rect(self.screen, (255, 255, 255), (self.border_size - 2,
+                         self.border_size - 2, self.width + 4, self.height + 4), 2)
 
         # Draw snake
         self.draw_snake()
-        
+
         # Draw food
-        if len(self.snake) < self.grid_size: # If the snake occupies the entire board, don't draw food.
+        # If the snake occupies the entire board, don't draw food.
+        if len(self.snake) < self.grid_size:
             r, c = self.food
-            pygame.draw.rect(self.screen, (255, 0, 0), (c * self.cell_size + self.border_size, r * self.cell_size + self.border_size, self.cell_size, self.cell_size))
+            pygame.draw.rect(self.screen, (255, 0, 0), (c * self.cell_size + self.border_size,
+                             r * self.cell_size + self.border_size, self.cell_size, self.cell_size))
 
         # Draw score
         self.draw_score()
@@ -226,8 +248,10 @@ class SnakeGame:
 
         eye_size = 3
         eye_offset = self.cell_size // 4
-        pygame.draw.circle(self.screen, (255, 255, 255), (head_x + eye_offset, head_y + eye_offset), eye_size)
-        pygame.draw.circle(self.screen, (255, 255, 255), (head_x + self.cell_size - eye_offset, head_y + eye_offset), eye_size)
+        pygame.draw.circle(self.screen, (255, 255, 255),
+                           (head_x + eye_offset, head_y + eye_offset), eye_size)
+        pygame.draw.circle(self.screen, (255, 255, 255), (head_x +
+                           self.cell_size - eye_offset, head_y + eye_offset), eye_size)
 
         # Draw the body (color gradient)
         color_list = np.linspace(255, 100, len(self.snake), dtype=np.uint8)
@@ -239,22 +263,22 @@ class SnakeGame:
             body_height = self.cell_size
             body_radius = 5
             pygame.draw.rect(self.screen, (0, color_list[i], 0),
-                            (body_x, body_y, body_width, body_height), border_radius=body_radius)
+                             (body_x, body_y, body_width, body_height), border_radius=body_radius)
             i += 1
         pygame.draw.rect(self.screen, (255, 100, 100),
-                            (body_x, body_y, body_width, body_height), border_radius=body_radius)
-        
+                         (body_x, body_y, body_width, body_height), border_radius=body_radius)
+
 
 if __name__ == "__main__":
     import time
 
-    seed = random.randint(0, 1e9)
+    seed = random.randint(0, 10**9)
     game = SnakeGame(seed=seed, silent_mode=False)
     pygame.init()
-    game.screen = pygame.display.set_mode((game.display_width, game.display_height))
+    game.screen = pygame.display.set_mode(
+        (game.display_width, game.display_height))
     pygame.display.set_caption("Snake Game")
     game.font = pygame.font.Font(None, 36)
-    
 
     game_state = "welcome"
 
@@ -267,7 +291,7 @@ if __name__ == "__main__":
     action = -1
 
     while True:
-        
+
         for event in pygame.event.get():
 
             if game_state == "running":
@@ -305,7 +329,7 @@ if __name__ == "__main__":
                     game.reset()
                     action = -1  # Reset action variable when starting a new game
                     game_state = "running"
-        
+
         if game_state == "welcome":
             game.draw_welcome_screen()
 
@@ -320,5 +344,5 @@ if __name__ == "__main__":
 
                 if done:
                     game_state = "game_over"
-        
+
         pygame.time.wait(1)

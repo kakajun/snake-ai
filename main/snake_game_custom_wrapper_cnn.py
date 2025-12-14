@@ -1,6 +1,6 @@
 import math
 
-import gym
+import gymnasium as gym
 import numpy as np
 
 from snake_game import SnakeGame
@@ -34,14 +34,16 @@ class SnakeEnv(gym.Env):
             self.step_limit = 1e9 # Basically no limit.
         self.reward_step_counter = 0
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
+        if seed is not None:
+            self.game = SnakeGame(seed=seed, board_size=self.board_size, silent_mode=self.silent_mode)
         self.game.reset()
 
         self.done = False
         self.reward_step_counter = 0
 
         obs = self._generate_observation()
-        return obs
+        return obs, {}
     
     def step(self, action):
         self.done, info = self.game.step(action) # info = {"snake_size": int, "snake_head_pos": np.array, "prev_snake_head_pos": np.array, "food_pos": np.array, "food_obtained": bool}
@@ -50,30 +52,31 @@ class SnakeEnv(gym.Env):
         reward = 0.0
         self.reward_step_counter += 1
 
-        if info["snake_size"] == self.grid_size: # Snake fills up the entire board. Game over.
-            reward = self.max_growth * 0.1 # Victory reward
-            self.done = True
+        terminated = False
+        truncated = False
+
+        if info["snake_size"] == self.grid_size:
+            reward = self.max_growth * 0.1
+            terminated = True
             if not self.silent_mode:
                 self.game.sound_victory.play()
-            return obs, reward, self.done, info
+            return obs, reward, terminated, truncated, info
         
-        if self.reward_step_counter > self.step_limit: # Step limit reached, game over.
+        if self.reward_step_counter > self.step_limit:
             self.reward_step_counter = 0
-            self.done = True
+            truncated = True
         
-        if self.done: # Snake bumps into wall or itself. Episode is over.
-            # Game Over penalty is based on snake size.
-            reward = - math.pow(self.max_growth, (self.grid_size - info["snake_size"]) / self.max_growth) # (-max_growth, -1)            
+        if self.done:
+            terminated = True
+            reward = - math.pow(self.max_growth, (self.grid_size - info["snake_size"]) / self.max_growth)
             reward = reward * 0.1
-            return obs, reward, self.done, info
+            return obs, reward, terminated, truncated, info
           
-        elif info["food_obtained"]: # Food eaten. Reward boost on snake size.
+        elif info["food_obtained"]:
             reward = info["snake_size"] / self.grid_size
-            self.reward_step_counter = 0 # Reset reward step counter
+            self.reward_step_counter = 0
         
         else:
-            # Give a tiny reward/penalty to the agent based on whether it is heading towards the food or not.
-            # Not competing with game over penalty or the food eaten reward.
             if np.linalg.norm(info["snake_head_pos"] - info["food_pos"]) < np.linalg.norm(info["prev_snake_head_pos"] - info["food_pos"]):
                 reward = 1 / info["snake_size"]
             else:
@@ -83,7 +86,7 @@ class SnakeEnv(gym.Env):
         # max_score: 72 + 14.1 = 86.1
         # min_score: -14.1
 
-        return obs, reward, self.done, info
+        return obs, reward, terminated, truncated, info
     
     def render(self):
         self.game.render()
